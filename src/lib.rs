@@ -1,3 +1,9 @@
+use nom::error::Error;
+use nom::error::ErrorKind;
+use nom::Err;
+use nom::IResult;
+use nom::InputLength;
+use nom::InputTakeAtPosition;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::stable_graph::NodeIndex;
 use petgraph::stable_graph::StableDiGraph;
@@ -143,6 +149,10 @@ impl PrecedenceGraph {
         }
         false
     }
+}
+
+pub fn mix_parser<'a, I, O>(graph: &PrecedenceGraph) -> impl FnMut(&'a str) -> IResult<&'a str, O> {
+    move |mut i| Err(Err::Error(Error::new(i, ErrorKind::Fail)))
 }
 
 #[cfg(test)]
