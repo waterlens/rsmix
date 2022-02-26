@@ -1,0 +1,2 @@
+# Mixfix Parser
+This is a demo project using the algorithm described in [Parsing Mixfix Operators](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.157.7899). The project is a slightly modified version of [this](https://github.com/chryslovelace/mixfix) now, but more features might be added in the future.
