@@ -285,7 +285,10 @@ where
 {
     fn parse(&self, i: I) -> ParserResult<I, (), ParseError> {
         let mut i = i;
-        while let Some((_, rest)) = i.take_split_if(|s| s.compare(" "), 1) {
+        while let Some((_, rest)) = i.take_split_if(
+            |s| s.compare(" ") || s.compare("\n") || s.compare("\r") || s.compare("\t"),
+            1,
+        ) {
             i = rest;
         }
         Ok((i, ()))
@@ -626,7 +629,8 @@ impl<'a> Compare<&'a str> for &'a str {
 }
 
 pub fn parse<'a, G: PrecedenceGraph>(graph: &'a G, input: &'a str) -> Result<Tree, ParseError> {
-    let (unparsed, expr) = Expr(graph).parse(input)?;
+    let (rest, expr) = Expr(graph).parse(input)?;
+    let (unparsed, _) = SkipSpace().parse(rest)?;
     if unparsed.is_empty() {
         Ok(expr)
     } else {
@@ -652,6 +656,9 @@ mod tests {
         let land = Operator::new(Fixity::Infix(Associativity::Left), "_&&_");
         let fact = Operator::new(Fixity::Postfix, "_!");
         let if_then_else = Operator::new(Fixity::Prefix, "if_then_else_");
+        let semicolon = Operator::new(Fixity::Infix(Associativity::Left), "_;_");
+        let tuple_2 = Operator::new(Fixity::Closed, "(_,_)");
+        let tuple_3 = Operator::new(Fixity::Closed, "(_,_,_)");
 
         graph.add(&add, PrecedenceRelation::Equal, &sub);
         graph.add(&parenthesis, PrecedenceRelation::Tighter, &add);
@@ -664,6 +671,12 @@ mod tests {
         graph.add(&eq, PrecedenceRelation::Looser, &parenthesis);
         graph.add(&b, PrecedenceRelation::Equal, &parenthesis);
         graph.add(&n, PrecedenceRelation::Equal, &parenthesis);
+        graph.add(&semicolon, PrecedenceRelation::Looser, &land);
+        graph.add(&semicolon, PrecedenceRelation::Looser, &if_then_else);
+        graph.add(&tuple_2, PrecedenceRelation::Looser, &parenthesis);
+        graph.add(&tuple_2, PrecedenceRelation::Tighter, &land);
+        graph.add(&tuple_3, PrecedenceRelation::Looser, &parenthesis);
+        graph.add(&tuple_3, PrecedenceRelation::Tighter, &land);
         graph
     }
     #[test]
@@ -681,7 +694,6 @@ mod tests {
     fn test_graph_trait() {
         let graph = make_graph();
         let (graph, map) = (graph.graph, graph.map);
-        assert_eq!(graph.node_count(), 6);
         println!("{:?}", map);
         for prec in graph.node_indices() {
             println!("{:?} {:?}", prec, graph.succ(prec));
@@ -709,7 +721,7 @@ mod tests {
     #[test]
     fn test_parser() {
         let graph = make_graph();
-        let i = "if b && n + n == n ! then n else ( n + n - n )";
+        let i = r#"if ( b , ( n , n , n ) ) && n + n == n ! then n else ( n + n ) ; n + n ; if b then b else n"#;
         let tree = parse(&graph.graph, i);
         if let Err(ParseError::UnexpectedToken(n)) = tree {
             let n = i.chars().count() - n;
